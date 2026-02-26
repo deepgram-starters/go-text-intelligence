@@ -1,0 +1,50 @@
+[meta]
+title = "Go Text Intelligence"
+description = "Get started using Deepgram's Text Intelligence with this Go demo app"
+author = "Deepgram DX Team <devrel@deepgram.com> (https://developers.deepgram.com)"
+repository = "https://github.com/deepgram-starters/go-text-intelligence"
+useCase = "text-intelligence"
+language = "go"
+framework = "go"
+tags = ["text-intelligence", "text-analysis", "nlp", "natural-language-processing", "go"]
+
+[install.pre]
+command = "git submodule update --init --recursive"
+message = "Submodules initialized"
+
+[install]
+command = ["go mod download", "cd frontend && corepack pnpm install"]
+message = "Dependencies installed"
+
+[install.config]
+sample = "sample.env"
+output = ".env"
+
+[check]
+command = ["command -v git", "command -v go", "command -v pnpm"]
+message = "Prerequisites checked"
+
+[start.pre]
+command = ["test -f .env || echo 'Error: .env file not found'", "test -d frontend/.git || echo 'Error: Frontend submodule not initialized'"]
+message = "Pre-flight checks complete"
+
+[start]
+command = ["go run main.go", "cd frontend && corepack pnpm run dev -- --port 8080 --no-open"]
+parallel = true
+message = "Application running on http://localhost:8080"
+
+[update]
+command = "git submodule update --remote --merge"
+message = "Submodules updated"
+
+[clean]
+command = ["rm -rf frontend/node_modules", "rm -rf frontend/dist"]
+message = "Build artifacts cleaned"
+
+[test]
+command = "cd contracts && ./tests/run-text-intelligence-app.sh"
+message = "Tests complete"
+
+[eject-frontend]
+command = "make eject-frontend"
+message = "Frontend ejected successfully"
