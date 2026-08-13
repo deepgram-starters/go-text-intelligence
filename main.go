@@ -12,7 +12,7 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -27,6 +27,10 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
+
+	analyzeapi "github.com/deepgram/deepgram-go-sdk/v3/pkg/api/analyze/v1"
+	analyze "github.com/deepgram/deepgram-go-sdk/v3/pkg/client/analyze"
+	dginterfaces "github.com/deepgram/deepgram-go-sdk/v3/pkg/client/interfaces"
 )
 
 // ============================================================================
@@ -331,62 +335,38 @@ func handleTextIntelligence(apiKey string) http.HandlerFunc {
 			return
 		}
 
-		// Build Deepgram API URL with query parameters
-		dgURL := "https://api.deepgram.com/v1/read?language=" + url.QueryEscape(language)
-
+		// Analyze the text with Deepgram via the official Go SDK.
+		opts := &dginterfaces.AnalyzeOptions{Language: language}
 		if summarize == "true" || summarize == "v2" {
-			dgURL += "&summarize=v2"
+			opts.Summarize = true
 		}
 		if topics == "true" {
-			dgURL += "&topics=true"
+			opts.Topics = true
 		}
 		if sentiment == "true" {
-			dgURL += "&sentiment=true"
+			opts.Sentiment = true
 		}
 		if intents == "true" {
-			dgURL += "&intents=true"
+			opts.Intents = true
 		}
 
-		// Build request body for Deepgram
-		dgBody, err := json.Marshal(map[string]string{"text": textContent})
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "processing_error", "INVALID_TEXT", "Failed to prepare request")
-			return
-		}
-
-		// Call Deepgram Read API
-		dgReq, err := http.NewRequest("POST", dgURL, bytes.NewReader(dgBody))
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "processing_error", "INVALID_TEXT", "Failed to create request")
-			return
-		}
-		dgReq.Header.Set("Authorization", "Token "+apiKey)
-		dgReq.Header.Set("Content-Type", "application/json")
-
-		client := &http.Client{Timeout: 30 * time.Second}
-		dgResp, err := client.Do(dgReq)
+		dg := analyzeapi.New(analyze.New(apiKey, &dginterfaces.ClientOptions{}))
+		res, err := dg.FromStream(context.Background(), strings.NewReader(textContent), opts)
 		if err != nil {
 			log.Printf("Deepgram API Error: %v", err)
 			writeError(w, http.StatusBadRequest, "processing_error", "INVALID_TEXT", fmt.Sprintf("Failed to process text: %v", err))
 			return
 		}
-		defer dgResp.Body.Close()
 
-		dgRespBody, err := io.ReadAll(dgResp.Body)
+		// Re-marshal the typed SDK response to preserve the frontend contract
+		// (the response still exposes a top-level "results" key).
+		dgRespBody, err := json.Marshal(res)
 		if err != nil {
-			log.Printf("Deepgram Response Read Error: %v", err)
-			writeError(w, http.StatusInternalServerError, "processing_error", "INVALID_TEXT", "Failed to read Deepgram response")
+			log.Printf("Deepgram Response Marshal Error: %v", err)
+			writeError(w, http.StatusInternalServerError, "processing_error", "INVALID_TEXT", "Failed to parse Deepgram response")
 			return
 		}
 
-		// Handle non-2xx from Deepgram
-		if dgResp.StatusCode < 200 || dgResp.StatusCode >= 300 {
-			log.Printf("Deepgram API Error (status %d): %s", dgResp.StatusCode, string(dgRespBody))
-			writeError(w, http.StatusBadRequest, "processing_error", "INVALID_TEXT", "Failed to process text")
-			return
-		}
-
-		// Parse Deepgram response to extract results
 		var dgResult map[string]interface{}
 		if err := json.Unmarshal(dgRespBody, &dgResult); err != nil {
 			log.Printf("Deepgram Response Parse Error: %v", err)

@@ -6,6 +6,7 @@ repository = "https://github.com/deepgram-starters/go-text-intelligence"
 useCase = "text-intelligence"
 language = "go"
 framework = "go"
+sdk = "deepgram-go-sdk"
 tags = ["text-intelligence", "text-analysis", "nlp", "natural-language-processing", "go"]
 
 [install.pre]
