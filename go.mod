@@ -12,6 +12,6 @@ require (
 require (
 	github.com/dvonthenen/websocket v1.5.1-dyv.2 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
-	github.com/gorilla/schema v1.3.0 // indirect
+	github.com/gorilla/schema v1.4.1 // indirect
 	k8s.io/klog/v2 v2.110.1 // indirect
 )
